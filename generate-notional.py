@@ -1,11 +1,13 @@
 from random import shuffle
 from FAMS.model_rankings import Technology, Order, Ranking
+from time import time
 
 num_metrics = 5
 num_techs = 15
 num_samples = num_techs
 
 """ Generate and process rankings """
+t0 = time()
 technologies = [Technology(id_=i) for i in range(num_techs)]
 for metric_id in range(num_metrics):
     metric = f'Metric {metric_id}'
@@ -20,3 +22,6 @@ for metric_id in range(num_metrics):
     ranking = Ranking.combine(samples, name=metric)
     ranking.ranking_probabilities()
     ranking.to_json(f'{metric}.json')
+tf = time()
+
+print(tf - t0)
