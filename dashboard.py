@@ -1,7 +1,8 @@
 """
 TODO
 ----
-Update initializations of figures to go with non-clearable dropdowns
+- Add more documentation/descriptions/headers
+- Fix parallel plot callback
 """
 from operator import itemgetter
 import os
@@ -28,7 +29,7 @@ load_figure_template('SOLAR')
 """ Process Files """
 technologies, rankings, metrics = list(), dict(), list()
 for file in os.listdir(os.environ['USERPROFILE']):
-    if re.match(f'Metric \d+.json', file):
+    if re.match(r'Metric \d+.json', file):
         ranking = Ranking.read_json(os.path.join(os.environ['USERPROFILE'],
                                                  file))
         name, _ = os.path.splitext(file)
@@ -113,7 +114,7 @@ def polling_results():
                 dcc.Graph(id='tech-order-freq')
             ], width=3)  # tech selector, hist, statistics
         ]),  # Select metric and show data
-        dbc.Row([  # TODO: add table of selected technologies?
+        dbc.Row([
             dbc.Col([
                 dcc.Graph(id='parallel-plot', figure=parallel_fig)
             ], width=12)
@@ -157,8 +158,8 @@ def decision_making():
                 dcc.Dropdown(id='pareto-metric-1', value=metrics[0],
                              options=metrics, multi=False, clearable=False),
                 dcc.Dropdown(id='pareto-metric-2', value=metrics[1],
-                                 options=metrics, multi=False,
-                                 clearable=False)], width=1),
+                             options=metrics, multi=False, clearable=False)],
+                width=1),
             dbc.Col(dcc.Graph(id='pareto-plot'),
                     width=5),  # selectable pareto plot
             dbc.Col(dcc.Graph(id='sim-heatmap'),
@@ -184,8 +185,6 @@ app.layout = html.Div([
     Input('poll-metric-select', 'value')
 )
 def polling_metric_figures(selected_metric):
-    if not selected_metric:
-        return {}, {}
     """ Score bar chart with cumulative line """
     df = data.sort_values(selected_metric)
     score_fig = make_subplots(shared_yaxes=True)
@@ -209,17 +208,17 @@ def polling_metric_figures(selected_metric):
     for i, (median, tech, xs, ys) in enumerate(ridge_data):
         min_x, max_x = min(xs), max(xs)
         ridge_fig.add_trace(go.Scatter(x=[min_x, max_x],
-                                 y=np.full(2, len(ranking.items) - i),
-                                 mode='lines', line_color='white'))
-        text = f'{tech.name}<br>Median: {median:.5f}<br>Stdev: {np.std(ys):.5f}'
-        text += f'<br>CV: {np.std(ys) / np.mean(ys):.5f}'
-        ridge_fig.add_trace(go.Scatter(x=xs, y=ys + (len(ranking.items) - i) + 0.1,
-                                 fill='tonexty', name=f'{tech.id}',
-                                 hovertext=text))
-        ridge_fig.add_annotation(x=min_x, y=len(ranking.items) - i,
-                           text=f'{tech.id}',
-                           showarrow=False, yshift=10,
-                           hovertext=f'{tech.name}')
+                                       y=np.full(2, len(ranking.items) - i),
+                                       mode='lines', line_color='white'))
+        std = np.std(ys)
+        text = f'{tech.name}<br>Median: {median:.5f}<br>'
+        text += f'Stdev: {std:.5f}<br>CV: {std / np.mean(ys):.5f}'
+        ridge_fig.add_trace(go.Scatter(
+            x=xs, y=ys + (len(ranking.items) - i) + 0.1, fill='tonexty',
+            name=f'{tech.id}', hovertext=text))
+        ridge_fig.add_annotation(
+            x=min_x, y=len(ranking.items) - i, text=f'{tech.id}',
+            showarrow=False, yshift=10, hovertext=f'{tech.name}')
     ridge_fig.update_layout(height=800)
     vals = [len(ridge_data) - i for i in range(len(ridge_data))]
     ids = [tech.id for _, tech, _, _ in ridge_data]
@@ -230,13 +229,9 @@ def polling_metric_figures(selected_metric):
 @app.callback(
     Output('tech-score-bars', 'figure'),
     Output('tech-order-freq', 'figure'),
-    Output('parallel-plot', 'figure'),
-    Input('poll-tech-select', 'value'),
-    [State('parallel-plot', 'figure')]
+    Input('poll-tech-select', 'value')
 )
-def polling_tech_figures(selected_tech, pfig):
-    if not selected_tech:
-        return {}, {}, pfig
+def polling_tech_figures(selected_tech):
     scores = data.loc[data['Name'] == selected_tech][metrics].iloc[0]
     scores.name = 'Score'
     score_fig = px.bar(scores)
@@ -249,11 +244,7 @@ def polling_tech_figures(selected_tech, pfig):
                 name = slot[0].name
                 frequencies[name][i] += 1
     order_fig = px.bar(pd.DataFrame(frequencies), y=selected_tech)
-
-    row = data[metrics].loc[tech_name_dict[selected_tech].id].to_list()
-    for i, v in enumerate(pfig.get('data')[0].get('dimensions')):
-        v.update({'constraintrange': [row[i] - row[i] / 100000, row[i]]})
-    return score_fig, order_fig, pfig
+    return score_fig, order_fig
 
 
 @app.callback(
@@ -289,12 +280,9 @@ def run_topsis(_, *args):
 @app.callback(
     Output('pareto-plot', 'figure'),
     Input('pareto-metric-1', 'value'),
-    Input('pareto-metric-2', 'value'),
-    State('pareto-plot', 'figure')
+    Input('pareto-metric-2', 'value')
 )
-def pareto_plot(metric1, metric2, pfig) -> plotly.graph_objs.Figure:
-    if any(not _ for _ in (metric1, metric2)):
-        return pfig
+def pareto_plot(metric1, metric2,) -> plotly.graph_objs.Figure:
     arr = data[metrics].to_numpy()
     data['Pareto Optimal'] = [_ in pareto_front(arr) for _ in data.index]
     return px.scatter(data, x=metric1, y=metric2, color='Pareto Optimal',
