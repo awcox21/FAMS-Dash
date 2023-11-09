@@ -20,10 +20,11 @@ i.e. Technology or Model
 - Histogram of rankings (currently assumes not allowed to mark similar, only ranked list)
 
 ### Parallel plot
-At bottom of tab, follow any given technology score across all of the rankings
+At bottom of tab, follow any given technology score across all rankings
 
 ## Tab 2: Single-Item Decision-Making
-Look at the relative importance of different rankngs in order to understand the multi-attribute space
+Look at the relative importance of different rankings in order to 
+understand the multi-attribute space
 
 ### TOPSIS
 Apply specific weightings for the importance of each given ranking and use TOPSIS to turn the multi-dimensional space into a ranked list of items
