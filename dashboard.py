@@ -1,3 +1,8 @@
+"""
+TODO
+----
+Update initializations of figures to go with non-clearable dropdowns
+"""
 from operator import itemgetter
 import os
 import re
@@ -5,6 +10,7 @@ from math import ceil
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objs
 from plotly.subplots import make_subplots
 import plotly.express as px
 import plotly.graph_objects as go
@@ -14,7 +20,7 @@ from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
 from dash_bootstrap_templates import load_figure_template
 
-from FAMS.utils import dist_median, TOPSIS
+from FAMS.utils import dist_median, TOPSIS, pareto_front
 from FAMS.model_rankings import Technology, Ranking, Order
 
 load_figure_template('SOLAR')
@@ -84,7 +90,8 @@ def polling_results():
                     dbc.Col([
                         html.H2('Show scores by metric'),
                         dcc.Dropdown(id='poll-metric-select', value=metrics[0],
-                                     options=metrics, multi=False)
+                                     options=metrics, multi=False,
+                                     clearable=False)
                     ], width=6)
                 ]),
                 dbc.Row([
@@ -101,7 +108,7 @@ def polling_results():
             dbc.Col([
                 html.H2('Show statistics by technology'),
                 dcc.Dropdown(id='poll-tech-select', value=techs[0],
-                             options=techs, multi=False),
+                             options=techs, multi=False, clearable=False),
                 dcc.Graph(id='tech-score-bars'),
                 dcc.Graph(id='tech-order-freq')
             ], width=3)  # tech selector, hist, statistics
@@ -119,35 +126,43 @@ def decision_making():
     return [
         dbc.Row([
             dbc.Col([html.H3('Set Weightings')] + sliders,
-                    style={'overflowY': 'auto'}),  # sliders
+                    style={'overflowY': 'auto'}, width=2),  # sliders
             dbc.Col([
                 html.H3('TOPSIS Sorted Technologies'),
                 html.Button('Set Default', id='set-default'),
                 html.Button('Sort Technologies', id='run-topsis')
-            ]),  # buttons
+            ], width=1),  # buttons
             dbc.Col([
                 dash_table.DataTable(
                     id='topsis-results',
                     style_data={'whiteSpace': 'normal', 'height': 'auto'},
                     style_cell={'textAlign': 'center'},
                     style_header={'text-align': 'center'})
-            ]),  # ranked table
+            ], width=3),  # ranked table
             dbc.Col([
                 html.H3('Weighting Independent Likelihood of Leading'),
                 dcc.Input(1_000, type='number', id='num-sim', name='num-sim'),
                 html.Button('Simulate', id='run-sim'),
-            ]),  # simulate buttons
+            ], width=1),  # simulate buttons
             dbc.Col([
                 dash_table.DataTable(
                     id='sim-results',
                     style_data={'whiteSpace': 'normal', 'height': 'auto'},
                     style_cell={'textAlign': 'center'},
                     style_header={'text-align': 'center'})
-            ])  # simulate table
+            ], width=3)  # simulate table
         ]),  # TOPSIS sliders and table, frequency analysis
         dbc.Row([
-            dbc.Col(),  # selectable pareto plot
-            dbc.Col(dcc.Graph(id='sim-heatmap'))  # simulate likelihood plot
+            dbc.Col([
+                dcc.Dropdown(id='pareto-metric-1', value=metrics[0],
+                             options=metrics, multi=False, clearable=False),
+                dcc.Dropdown(id='pareto-metric-2', value=metrics[1],
+                                 options=metrics, multi=False,
+                                 clearable=False)], width=1),
+            dbc.Col(dcc.Graph(id='pareto-plot'),
+                    width=5),  # selectable pareto plot
+            dbc.Col(dcc.Graph(id='sim-heatmap'),
+                    width=6)  # simulate likelihood plot
         ])  # Plots (pareto and frequency)
     ]
 
@@ -269,6 +284,21 @@ def run_topsis(_, *args):
                               'ID': sorted_data.index,
                               'Name': names})
         return table.to_dict('records')
+
+
+@app.callback(
+    Output('pareto-plot', 'figure'),
+    Input('pareto-metric-1', 'value'),
+    Input('pareto-metric-2', 'value'),
+    State('pareto-plot', 'figure')
+)
+def pareto_plot(metric1, metric2, pfig) -> plotly.graph_objs.Figure:
+    if any(not _ for _ in (metric1, metric2)):
+        return pfig
+    arr = data[metrics].to_numpy()
+    data['Pareto Optimal'] = [_ in pareto_front(arr) for _ in data.index]
+    return px.scatter(data, x=metric1, y=metric2, color='Pareto Optimal',
+                      hover_name='Name')
 
 
 @app.callback(
