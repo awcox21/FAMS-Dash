@@ -3,9 +3,11 @@ TODO
 ----
 - Add more documentation/descriptions/headers
 - Fix parallel plot callback
-- TOPSIS scatter: fix bounds regardless of selection?
 - Heatmap might be hard to read for high dimensionality
 - Make tables and weightings scrollable instead of all of it
+- Prettify tables
+- Make all fonts bigger and the same
+- Heatmap color(?), hover, and maybe alternative/addition?
 """
 from operator import itemgetter, attrgetter
 import os
@@ -30,6 +32,7 @@ from FAMS.model_rankings import Technology, Ranking, Order
 load_figure_template('SOLAR')
 
 path = os.path.join(os.path.dirname(__file__), 'data')
+h1 = 700
 
 """ Process Files """
 technologies, rankings, metrics = list(), dict(), list()
@@ -108,7 +111,15 @@ def polling_results():
                     dbc.Col([
                         html.H2('Technology Score Distributions by Metric'),
                         dcc.Graph(id='metric-ridgeline')
-                    ], width=8)  # ridgeline
+                    ], width=8),  # ridgeline
+                    # dbc.Col(dash_table.DataTable(
+                    #     id='parcoord-select',
+                    #     style_data={'whiteSpace': 'normal',
+                    #                 'height': 'auto'},
+                    #     style_cell={'textAlign': 'center'},
+                    #     style_header={'text-align': 'center'},
+                    #     page_size=15
+                    # ), width=3)
                 ])
             ], width=9),
             dbc.Col([
@@ -132,46 +143,55 @@ def decision_making():
     return [
         dbc.Row([
             dbc.Col([html.H3('Set Weightings')] + sliders,
-                    style={'overflowY': 'auto'}, width=2),  # sliders
+                    style={'overflowY': 'auto', 'height': '50%'},
+                    width=2),  # sliders
             dbc.Col([
-                html.H3('TOPSIS Sorted Technologies'),
-                html.Button('Set Default', id='set-default'),
-                html.Button('Sort Technologies', id='run-topsis')
-            ], width=1),  # buttons
-            dbc.Col([
-                dash_table.DataTable(
-                    id='topsis-results',
-                    style_data={'whiteSpace': 'normal', 'height': 'auto'},
-                    style_cell={'textAlign': 'center'},
-                    style_header={'text-align': 'center'},
-                    style_table={'overflowY': 'auto'})
-            ], width=3),  # ranked table
-            dbc.Col([
-                html.H3('Weighting Independent Likelihood of Leading'),
-                dcc.Input(1_000, type='number', id='num-sim', name='num-sim'),
-                html.Button('Simulate', id='run-sim'),
-            ], width=1),  # simulate buttons
-            dbc.Col([
-                dash_table.DataTable(
-                    id='sim-results',
-                    style_data={'whiteSpace': 'normal', 'height': 'auto'},
-                    style_cell={'textAlign': 'center'},
-                    style_header={'text-align': 'center'},
-                    style_table={'overflowY': 'auto'})
-            ], width=3)  # simulate table
-        ]),  # TOPSIS sliders and table, frequency analysis
-        dbc.Row([
-            dbc.Col([
-                dcc.Dropdown(id='pareto-metric-1', value=metrics[0],
-                             options=metrics, multi=False, clearable=False),
-                dcc.Dropdown(id='pareto-metric-2', value=metrics[1],
-                             options=metrics, multi=False, clearable=False)],
-                width=1),
-            dbc.Col(dcc.Graph(id='pareto-plot'),
-                    width=5),  # selectable pareto plot
-            dbc.Col(dcc.Graph(id='sim-heatmap'),
-                    width=6)  # simulate likelihood plot
-        ])  # Plots (pareto and frequency)
+                dbc.Row([
+                    dbc.Col([
+                        html.H3('TOPSIS Sorted Technologies'),
+                        html.Button('Set Default', id='set-default'),
+                        html.Button('Sort Technologies', id='run-topsis')
+                    ], width=1),  # buttons
+                    dbc.Col([
+                        dash_table.DataTable(
+                            id='topsis-results',
+                            style_data={'whiteSpace': 'normal',
+                                        'height': 'auto'},
+                            style_cell={'textAlign': 'center'},
+                            style_header={'text-align': 'center'},
+                            page_size=15)
+                    ], width=5),  # ranked table
+                    dbc.Col([
+                        html.H3('Weighting Independent Likelihood of Leading'),
+                        dcc.Input(1_000, type='number', id='num-sim',
+                                  name='num-sim'),
+                        html.Button('Simulate', id='run-sim'),
+                    ], width=1),  # simulate buttons
+                    dbc.Col([
+                        dash_table.DataTable(
+                            id='sim-results',
+                            style_data={'whiteSpace': 'normal', 'height': 'auto'},
+                            style_cell={'textAlign': 'center'},
+                            style_header={'text-align': 'center'},
+                            page_size=15)  # TODO: only show non-zero numbers
+                    ], width=5)  # simulate table
+                ]),  # TOPSIS sliders and table, frequency analysis
+                dbc.Row([
+                    dbc.Col([
+                        dcc.Dropdown(id='pareto-metric-1', value=metrics[0],
+                                     options=metrics, multi=False,
+                                     clearable=False),
+                        dcc.Dropdown(id='pareto-metric-2', value=metrics[1],
+                                     options=metrics, multi=False,
+                                     clearable=False)],
+                        width=1),
+                    dbc.Col(dcc.Graph(id='pareto-plot'),
+                            width=5),  # selectable pareto plot
+                    dbc.Col(dcc.Graph(id='sim-heatmap'),
+                            width=6)  # simulate likelihood plot
+                ])  # Plots (pareto and frequency)
+            ])
+        ])
     ]
 
 
@@ -199,7 +219,7 @@ def polling_metric_figures(selected_metric):
                       name=f'{selected_metric} Score')
     score_fig.add_scatter(x=df[f'{selected_metric} Cumulative'], y=df['Name'],
                           name=f'{selected_metric} Cumulative')
-    score_fig.update_layout(height=800)
+    score_fig.update_layout(height=h1)
     """ Ridgeline plot of technology Kernel Densities """
     ranking = rankings[selected_metric]
     ridge_data = list()
@@ -226,7 +246,7 @@ def polling_metric_figures(selected_metric):
         ridge_fig.add_annotation(
             x=min_x, y=len(ranking.items) - i, text=f'{tech.id}',
             showarrow=False, yshift=10, hovertext=f'{tech.name}')
-    ridge_fig.update_layout(height=800)
+    ridge_fig.update_layout(height=h1)
     vals = [len(ridge_data) - i for i in range(len(ridge_data))]
     ids = [tech.id for _, tech, _, _ in ridge_data]
     ridge_fig.update_layout(yaxis=dict(tickvals=vals, ticktext=ids))
@@ -241,7 +261,7 @@ def polling_metric_figures(selected_metric):
 def polling_tech_figures(selected_tech):
     scores = data.loc[data['Name'] == selected_tech][metrics].iloc[0]
     scores.name = 'Score'
-    score_fig = px.bar(scores)
+    score_fig = px.bar(scores, height=h1 / 2)
 
     frequencies = {tech.name: [0 for _ in technologies] for tech in
                    technologies}
@@ -250,7 +270,8 @@ def polling_tech_figures(selected_tech):
             for i, slot in enumerate(order.order):
                 name = slot[0].name
                 frequencies[name][i] += 1
-    order_fig = px.bar(pd.DataFrame(frequencies), y=selected_tech)
+    order_fig = px.bar(pd.DataFrame(frequencies), y=selected_tech,
+                       height=h1 / 2)
     return score_fig, order_fig
 
 
@@ -292,8 +313,9 @@ def run_topsis(_, *args):
 def pareto_plot(metric1, metric2,) -> plotly.graph_objs.Figure:
     arr = data[metrics].to_numpy()
     data['Pareto Optimal'] = [_ in pareto_front(arr) for _ in data.index]
-    return px.scatter(data, x=metric1, y=metric2, color='Pareto Optimal',
-                      hover_name='Name')
+    return px.scatter(data, x=metric1, y=metric2, range_x=[0, 1.1 * maximum],
+                      range_y=[0, 1.1 * maximum], color='Pareto Optimal',
+                      hover_name='Name', height=h1 + 100)
 
 
 @app.callback(
@@ -315,7 +337,8 @@ def run_sim(_, num):
         df = pd.DataFrame({'Name': [_.name for _ in technologies],
                            'Frequency': frequency})
         df = df.sort_values('Frequency', ascending=False)
-        sim_fig = px.imshow(freq)
+        df = df[df['Frequency'] != 0]
+        sim_fig = px.imshow(freq, height=h1 + 100)
         return df.to_dict('records'), sim_fig
     else:
         return None, px.imshow(freq)
