@@ -3,8 +3,11 @@ TODO
 ----
 - Add more documentation/descriptions/headers
 - Fix parallel plot callback
+- TOPSIS scatter: fix bounds regardless of selection?
+- Heatmap might be hard to read for high dimensionality
+- Make tables and weightings scrollable instead of all of it
 """
-from operator import itemgetter
+from operator import itemgetter, attrgetter
 import os
 import re
 from math import ceil
@@ -26,12 +29,13 @@ from FAMS.model_rankings import Technology, Ranking, Order
 
 load_figure_template('SOLAR')
 
+path = os.path.join(os.path.dirname(__file__), 'data')
+
 """ Process Files """
 technologies, rankings, metrics = list(), dict(), list()
-for file in os.listdir(os.environ['USERPROFILE']):
+for file in os.listdir(path):
     if re.match(r'Metric \d+.json', file):
-        ranking = Ranking.read_json(os.path.join(os.environ['USERPROFILE'],
-                                                 file))
+        ranking = Ranking.read_json(os.path.join(path, file))
         name, _ = os.path.splitext(file)
         metrics.append(name)
         if not technologies:
@@ -39,6 +43,7 @@ for file in os.listdir(os.environ['USERPROFILE']):
             tech_id_dict = {_.id: _ for _ in technologies}
             tech_name_dict = {_.name: _ for _ in technologies}
         rankings[name] = ranking
+
 
 """ Process Score Data """
 data = dict()
@@ -138,7 +143,8 @@ def decision_making():
                     id='topsis-results',
                     style_data={'whiteSpace': 'normal', 'height': 'auto'},
                     style_cell={'textAlign': 'center'},
-                    style_header={'text-align': 'center'})
+                    style_header={'text-align': 'center'},
+                    style_table={'overflowY': 'auto'})
             ], width=3),  # ranked table
             dbc.Col([
                 html.H3('Weighting Independent Likelihood of Leading'),
@@ -150,7 +156,8 @@ def decision_making():
                     id='sim-results',
                     style_data={'whiteSpace': 'normal', 'height': 'auto'},
                     style_cell={'textAlign': 'center'},
-                    style_header={'text-align': 'center'})
+                    style_header={'text-align': 'center'},
+                    style_table={'overflowY': 'auto'})
             ], width=3)  # simulate table
         ]),  # TOPSIS sliders and table, frequency analysis
         dbc.Row([
