@@ -279,9 +279,9 @@ def run_topsis(_, *args):
 )
 def run_sim(_, num):
     changed = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    freq = np.zeros((len(technologies), len(technologies)))
     if 'run-sim' in changed:
         topsis = TOPSIS(data[metrics])
-        freq = np.zeros((len(technologies), len(technologies)))
         for _ in range(num):
             weights = np.random.rand(len(technologies))
             for i, j in zip(data.index, np.argsort(topsis(weights))[::-1]):
@@ -293,7 +293,7 @@ def run_sim(_, num):
         sim_fig = px.imshow(freq)
         return df.to_dict('records'), sim_fig
     else:
-        return None, {}
+        return None, px.imshow(freq)
 
 
 if __name__ == '__main__':
