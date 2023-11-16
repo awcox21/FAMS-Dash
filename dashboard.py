@@ -4,12 +4,11 @@ TODO
 - Add more documentation/descriptions/headers
 - Fix parallel plot callback
 - Heatmap might be hard to read for high dimensionality
-- Make tables and weightings scrollable instead of all of it
 - Prettify tables
 - Make all fonts bigger and the same
-- Heatmap color(?), hover, and maybe alternative/addition?
+- Heatmap hover, axis titles
 """
-from operator import itemgetter, attrgetter
+from operator import itemgetter
 import os
 import re
 from math import ceil
@@ -75,7 +74,7 @@ parallel_fig = go.Figure(
         # unselected=dict(line=dict(opacity=0.3))
     )
 )
-parallel_fig.update_layout(font=dict(color='yellow', size=20))
+parallel_fig.update_layout(font=dict(color='yellow', size=font_size))
 parallel_fig.update_layout(paper_bgcolor='gray')
 
 
@@ -112,14 +111,6 @@ def polling_results():
                         html.H2('Technology Score Distributions by Metric'),
                         dcc.Graph(id='metric-ridgeline')
                     ], width=8),  # ridgeline
-                    # dbc.Col(dash_table.DataTable(
-                    #     id='parcoord-select',
-                    #     style_data={'whiteSpace': 'normal',
-                    #                 'height': 'auto'},
-                    #     style_cell={'textAlign': 'center'},
-                    #     style_header={'text-align': 'center'},
-                    #     page_size=15
-                    # ), width=3)
                 ])
             ], width=9),
             dbc.Col([
@@ -220,6 +211,7 @@ def polling_metric_figures(selected_metric):
     score_fig.add_scatter(x=df[f'{selected_metric} Cumulative'], y=df['Name'],
                           name=f'{selected_metric} Cumulative')
     score_fig.update_layout(height=h1)
+    score_fig.update_layout(font=dict(size=font_size))
     """ Ridgeline plot of technology Kernel Densities """
     ranking = rankings[selected_metric]
     ridge_data = list()
@@ -231,7 +223,7 @@ def polling_metric_figures(selected_metric):
         median, _ = dist_median(xs, ys)
         ridge_data.append((median, tech, xs, ys))
     ridge_data.sort(key=itemgetter(0), reverse=True)
-    ridge_fig = go.Figure()
+    ridge_fig = go.Figure(layout={'showlegend': False})
     for i, (median, tech, xs, ys) in enumerate(ridge_data):
         min_x, max_x = min(xs), max(xs)
         ridge_fig.add_trace(go.Scatter(x=[min_x, max_x],
@@ -243,13 +235,11 @@ def polling_metric_figures(selected_metric):
         ridge_fig.add_trace(go.Scatter(
             x=xs, y=ys + (len(ranking.items) - i) + 0.1, fill='tonexty',
             name=f'{tech.id}', hovertext=text))
-        ridge_fig.add_annotation(
-            x=min_x, y=len(ranking.items) - i, text=f'{tech.id}',
-            showarrow=False, yshift=10, hovertext=f'{tech.name}')
     ridge_fig.update_layout(height=h1)
     vals = [len(ridge_data) - i for i in range(len(ridge_data))]
     ids = [tech.id for _, tech, _, _ in ridge_data]
     ridge_fig.update_layout(yaxis=dict(tickvals=vals, ticktext=ids))
+    ridge_fig.update_layout(font=dict(size=font_size))
     return score_fig, ridge_fig
 
 
@@ -262,6 +252,7 @@ def polling_tech_figures(selected_tech):
     scores = data.loc[data['Name'] == selected_tech][metrics].iloc[0]
     scores.name = 'Score'
     score_fig = px.bar(scores, height=h1 / 2)
+    score_fig.update_layout(font=dict(size=font_size))
 
     frequencies = {tech.name: [0 for _ in technologies] for tech in
                    technologies}
@@ -272,6 +263,7 @@ def polling_tech_figures(selected_tech):
                 frequencies[name][i] += 1
     order_fig = px.bar(pd.DataFrame(frequencies), y=selected_tech,
                        height=h1 / 2)
+    order_fig.update_layout(font=dict(size=font_size))
     return score_fig, order_fig
 
 
@@ -313,9 +305,12 @@ def run_topsis(_, *args):
 def pareto_plot(metric1, metric2,) -> plotly.graph_objs.Figure:
     arr = data[metrics].to_numpy()
     data['Pareto Optimal'] = [_ in pareto_front(arr) for _ in data.index]
-    return px.scatter(data, x=metric1, y=metric2, range_x=[0, 1.1 * maximum],
-                      range_y=[0, 1.1 * maximum], color='Pareto Optimal',
-                      hover_name='Name', height=h1 + 100)
+    pareto_fig = px.scatter(
+        data, x=metric1, y=metric2, range_x=[0, 1.1 * maximum],
+        range_y=[0, 1.1 * maximum], color='Pareto Optimal', hover_name='Name',
+        height=h1 + 100)
+    pareto_fig.update_layout(font=dict(size=font_size))
+    return pareto_fig
 
 
 @app.callback(
@@ -338,10 +333,14 @@ def run_sim(_, num):
                            'Frequency': frequency})
         df = df.sort_values('Frequency', ascending=False)
         df = df[df['Frequency'] != 0]
-        sim_fig = px.imshow(freq, height=h1 + 100)
+        sim_fig = px.imshow(freq, height=h1 + 100,
+                            color_continuous_scale='viridis')
+        sim_fig.update_layout(font=dict(size=font_size))
         return df.to_dict('records'), sim_fig
     else:
-        return None, px.imshow(freq)
+        sim_fig = px.imshow(freq, color_continuous_scale='viridis')
+        sim_fig.update_layout(font=dict(size=font_size))
+        return None, sim_fig
 
 
 if __name__ == '__main__':
