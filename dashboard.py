@@ -130,6 +130,7 @@ def polling_results():
                 dcc.Graph(id='tech-order-freq')
             ], width=3)  # tech selector, hist, statistics
         ]),  # Select metric and show data
+        dbc.Row(dbc.Col(html.Div(id='par-selected'))),
         dbc.Row([
             dbc.Col([
                 dcc.Graph(id='parallel-plot', figure=parallel_fig)
@@ -251,6 +252,33 @@ def polling_metric_figures(selected_metric):
     ids = [tech.id for _, tech, _, _ in ridge_data]
     ridge_fig.update_layout(yaxis=dict(tickvals=vals, ticktext=ids))
     return score_fig, ridge_fig
+
+
+@app.callback(
+    Output('par-selected', 'children'),
+    Input('parallel-plot', 'restyleData'),
+    State('parallel-plot', 'figure')
+)
+def parallel_select(par_restyle, par_plot_data):
+    par_data = par_plot_data['data'][0]['dimensions']
+    selected = list()
+    for column in par_data:
+        try:
+            low, high = column['constraintrange']
+        except KeyError:
+            continue
+        selected_ = list()
+        for tech, value in zip(technologies, column['values']):
+            if low <= value <= high:
+                selected_.append(tech)
+        selected.append(selected_)
+    if selected:
+        selected = list(set.intersection(*map(set, selected)))
+        selected.sort(key=lambda x: x.id)
+        message = f"Selected below: {', '.join(_.name for _ in selected)}"
+    else:
+        message = 'None selected below'
+    return html.P(message)
 
 
 @app.callback(
