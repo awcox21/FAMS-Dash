@@ -203,7 +203,13 @@ def decision_making():
                     ], width=5),  # ranked table
                     dbc.Col([
                         html.H4('Weighting Independent Likelihood of Leading'),
-                        html.Button('Simulate', id='run-sim'),
+                        html.Button('Simulate', id='run-sim',
+                                    className='bg-primary',
+                                    style={'font-weight': 'bold',
+                                           'font-size': font_size * 1.25,
+                                           'margin-bottom': '10px',
+                                           'color': 'white'}
+                                    ),
                     ], width=1),  # simulate buttons
                     dbc.Col([
                         DataTable(
