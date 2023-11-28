@@ -85,6 +85,7 @@ parallel_fig = go.Figure(
 )
 parallel_fig.update_layout(font=dict(color='white', size=font_size))
 
+
 def percentile_slider(id_):
     default = 50
     return dbc.Row([
