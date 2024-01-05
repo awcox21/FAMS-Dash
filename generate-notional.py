@@ -25,7 +25,7 @@ for metric_id in range(num_metrics):
         samples.append(sample)
     ranking = Ranking.combine(samples, name=metric)
     ranking.ranking_probabilities()
-    ranking.to_json(f'{metric}.json')
+    ranking.to_json(f'metric-{metric}.json')
 tf = time()
 
 print(tf - t0)

@@ -80,7 +80,8 @@ parallel_fig = go.Figure(
     data=go.Parcoords(
         line=dict(color=data['Category IDs'],
                   colorscale=colorscale),
-        dimensions=dimensions
+        dimensions=dimensions,
+        labelangle=30
     )
 )
 parallel_fig.update_layout(font=dict(color='white', size=font_size))
@@ -162,7 +163,7 @@ def decision_making():
         dbc.Row([
             dbc.Col([html.H3('Set Weightings')] + sliders,
                     style={'overflowY': 'auto', 'height': '50%'},
-                    width=2),  # sliders
+                    width=3),  # sliders
             dbc.Col([
                 dbc.Row([
                     dbc.Col([
@@ -377,7 +378,8 @@ def parallel_select(_, par_plot_data):
 def polling_tech_figures(selected_tech):
     scores = data.loc[data['Name'] == selected_tech][metrics].iloc[0]
     scores.name = 'Score'
-    score_fig = px.bar(scores, height=h1 / 2)
+    score_fig = px.bar(scores, height=h1 / 2,
+                       labels={_: str() for _ in metrics})
     score_fig.update_layout(font=dict(size=font_size))
     score_fig.update_layout(showlegend=False)
     score_fig.update_layout(xaxis_title=None)
