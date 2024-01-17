@@ -268,11 +268,38 @@ def decision_making():
     ]
 
 
-def verification():
+def tech_select():
     return [
-        html.Div(id='convergence'),
-        dcc.Graph(id='sim-history')
+        html.H2('List of technologies'),
+        html.P('Select rows to exclude those technologies from TOPSIS'),
+        DataTable(
+            data=data[['ID', 'Name', 'Category']].to_dict('records'),
+            id='tech-exclude',
+            columns=[
+                dict(id='ID', name='ID'),
+                dict(id='Name', name='Name'),
+                dict(id='Category', name='Category')
+            ],
+            style_header={
+                'text-align': 'center',
+                'backgroundColor': 'rgb(30, 30, 30)',
+                'color': 'white', 'fontWeight': 'bold'
+            },
+            style_data={'whiteSpace': 'normal',
+                        'height': 'auto',
+                        'color': 'white',
+                        'backgroundColor': 'rgb(50, 50, 50)'},
+            style_cell={'textAlign': 'center'},
+            row_selectable='multi'
+        )
     ]
+
+
+# def verification():
+#     return [
+#         html.Div(id='convergence'),
+#         dcc.Graph(id='sim-history')
+#     ]
 
 
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
@@ -291,10 +318,14 @@ app.layout = html.Div([
                 selected_className='bg-primary',
                 selected_style={'color': 'white'},
                 style={'color': 'black'}),
-        dcc.Tab(verification(), label='Verification',
+        dcc.Tab(tech_select(), label='Technologies',
                 selected_className='bg-primary',
                 selected_style={'color': 'white'},
-                style={'color': 'black'}),
+                style={'color': 'black'})
+        # dcc.Tab(verification(), label='Verification',
+        #         selected_className='bg-primary',
+        #         selected_style={'color': 'white'},
+        #         style={'color': 'black'}),
     ])
 ])
 
@@ -458,11 +489,16 @@ def slider_values(*sliders):
 @app.callback(
     Output('last-topsis', 'data'),
     Input('run-topsis', 'n_clicks'),
+    State('tech-exclude', 'selected_rows'),
     [State(f'{_}-slider', 'value') for _ in metrics]
 )
-def run_topsis(_, *args):
+def run_topsis(_, exclude, *args):
     changed = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'run-topsis' in changed:
+        if exclude:
+            excluded = data['Name'].iloc[exclude]
+        else:
+            excluded = set()
         args = iter(args)
         sliders = list()
         for _ in metrics:
@@ -473,11 +509,13 @@ def run_topsis(_, *args):
             sum_ = sum(sliders)
         weights = np.array([_ / sum_ for _ in sliders])
         sorted_data = TOPSIS(data[metrics]).sort(weights)
-        names = [tech_index_dict[_].name for _ in sorted_data.index]
-        categories = sorted([tech_index_dict[_].category
-                             for _ in sorted_data.index])
+        ids = [_ + 1 for _ in sorted_data.index if _ not in excluded]
+        names = [tech_index_dict[_].name for _ in sorted_data.index
+                 if _ not in excluded]
+        categories = [tech_index_dict[_].category for _ in sorted_data.index
+                      if _ not in excluded]
         table = pd.DataFrame({'rank': range(1, len(names) + 1),
-                              'ID': sorted_data.index,
+                              'ID': ids,
                               'category': categories,
                               'name': names})
         return table.to_dict()
@@ -569,13 +607,12 @@ def pareto_plot(metric1, metric2) -> plotly.graph_objs.Figure:
 @app.callback(
     Output('sim-results', 'data'),
     Output('sim-heatmap', 'figure'),
-    Output('sim-history', 'figure'),
-    Output('convergence', 'children'),
+    # Output('sim-history', 'figure'),
+    # Output('convergence', 'children'),
     Output('sim-data', 'data'),
-    Input('run-sim', 'n_clicks'),
-    State('topsis-archive', 'data')
+    Input('run-sim', 'n_clicks')
 )
-def run_sim(_, archive):
+def run_sim(_):
     changed = [p['prop_id'] for p in dash.callback_context.triggered][0]
     freq = np.zeros((len(technologies), len(technologies)))
     if 'run-sim' in changed:
@@ -632,14 +669,14 @@ def run_sim(_, archive):
                               x='num', y='std')
         return (df.to_dict('records'),
                 sim_fig,
-                sim_history,
-                html.P(message),
+                # sim_history,
+                # html.P(message),
                 df.to_dict())
     else:
         sim_fig = px.imshow(freq, height=h1 + 100,
                             color_continuous_scale='viridis')
         sim_fig.update_layout(font=dict(size=font_size))
-        return None, sim_fig, {}, None, dict()
+        return None, sim_fig, dict()
 
 
 if __name__ == '__main__':
