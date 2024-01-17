@@ -3,6 +3,7 @@ import os
 import re
 from math import ceil
 import json
+from datetime import datetime
 
 from matplotlib.cm import viridis as colormap
 from matplotlib.colors import to_hex
@@ -177,9 +178,12 @@ def decision_making():
                         html.Button('Sort Technologies', id='run-topsis',
                                     className='bg-primary',
                                     style={'font-weight': 'bold',
-                                           'font-size': font_size * 1.25,
-                                           'margin-bottom': '10px',
-                                           'color': 'white'})
+                                           'font-size': font_size * 1.1,
+                                           'margin-bottom': '15px',
+                                           'color': 'white'}),
+                        html.Button('Save Table',
+                                    id='save-topsis',
+                                    style={'margin-bottom': '10px'})
                     ], width=1),  # buttons
                     dbc.Col([
                         DataTable(
@@ -274,6 +278,9 @@ def verification():
 app = dash.Dash(__name__, external_stylesheets=[dbc.themes.DARKLY])
 
 app.layout = html.Div([
+    dcc.Store(id='last-topsis'),
+    dcc.Store(id='topsis-archive'),
+    dcc.Store(id='sim-data'),
     html.H1('Technology Evaluation Dashboard'),
     dcc.Tabs([
         dcc.Tab(polling_results(), label='Polling Results',
@@ -449,7 +456,7 @@ def slider_values(*sliders):
 
 
 @app.callback(
-    Output('topsis-results', 'data'),
+    Output('last-topsis', 'data'),
     Input('run-topsis', 'n_clicks'),
     [State(f'{_}-slider', 'value') for _ in metrics]
 )
@@ -461,6 +468,9 @@ def run_topsis(_, *args):
         for _ in metrics:
             sliders.append(next(args))
         sum_ = sum(sliders)
+        if not sum_:  # all set to zero, should be same as all equal
+            sliders = [50 for _ in metrics]
+            sum_ = sum(sliders)
         weights = np.array([_ / sum_ for _ in sliders])
         sorted_data = TOPSIS(data[metrics]).sort(weights)
         names = [tech_index_dict[_].name for _ in sorted_data.index]
@@ -470,7 +480,47 @@ def run_topsis(_, *args):
                               'ID': sorted_data.index,
                               'category': categories,
                               'name': names})
-        return table.to_dict('records')
+        return table.to_dict()
+
+
+@app.callback(
+    Output('topsis-results', 'data'),
+    Input('last-topsis', 'data')
+)
+def display_topsis(recent):
+    return pd.DataFrame.from_dict(recent).to_dict('records')
+
+
+@app.callback(
+    Output('topsis-archive', 'data'),
+    Input('save-topsis', 'n_clicks'),
+    Input('sim-data', 'data'),
+    State('last-topsis', 'data'),
+    State('topsis-archive', 'data')
+)
+def save_topsis(_, from_sim, recent, archive):
+    changed = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'save-topsis' in changed:
+        if not recent:
+            return archive
+        if not archive:
+            archive = {'manual': [recent]}
+        else:
+            if recent not in archive['manual']:
+                archive['manual'].append(recent)
+        today = datetime.today().strftime('%Y-%m-%d')
+        with open(f'{today} TOPSIS Results.json', 'w') as f:
+            json.dump(archive, f)
+        return archive
+    elif from_sim:
+        if not archive:
+            archive = {'sim': from_sim}
+        else:
+            archive['sim'] = from_sim
+        today = datetime.today().strftime('%Y-%m-%d')
+        with open(f'{today} TOPSIS Results.json', 'w') as f:
+            json.dump(archive, f)
+        return archive
 
 
 @app.callback(
@@ -521,9 +571,11 @@ def pareto_plot(metric1, metric2) -> plotly.graph_objs.Figure:
     Output('sim-heatmap', 'figure'),
     Output('sim-history', 'figure'),
     Output('convergence', 'children'),
-    Input('run-sim', 'n_clicks')
+    Output('sim-data', 'data'),
+    Input('run-sim', 'n_clicks'),
+    State('topsis-archive', 'data')
 )
-def run_sim(_):
+def run_sim(_, archive):
     changed = [p['prop_id'] for p in dash.callback_context.triggered][0]
     freq = np.zeros((len(technologies), len(technologies)))
     if 'run-sim' in changed:
@@ -578,12 +630,16 @@ def run_sim(_):
         sim_fig.update_layout(font=dict(size=font_size))
         sim_history = px.line(pd.DataFrame(stds, columns=('num', 'std')),
                               x='num', y='std')
-        return df.to_dict('records'), sim_fig, sim_history, html.P(message)
+        return (df.to_dict('records'),
+                sim_fig,
+                sim_history,
+                html.P(message),
+                df.to_dict())
     else:
         sim_fig = px.imshow(freq, height=h1 + 100,
                             color_continuous_scale='viridis')
         sim_fig.update_layout(font=dict(size=font_size))
-        return None, sim_fig, {}, None
+        return None, sim_fig, {}, None, dict()
 
 
 if __name__ == '__main__':
