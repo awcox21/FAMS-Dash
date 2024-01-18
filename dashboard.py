@@ -37,6 +37,7 @@ for file in os.listdir(path):
         ranking = Ranking.read_json(os.path.join(path, file))
         name, _ = os.path.splitext(file)
         name = name.replace('metric-', str())
+        name = name.replace('_', '/')
         metrics.append(name)
         if not technologies:
             technologies = list(ranking.items)
