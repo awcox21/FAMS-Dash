@@ -361,17 +361,27 @@ def polling_metric_figures(selected_metric):
     ridge_data.sort(key=itemgetter(0), reverse=True)
     title = f'Technology Score Distributions for {selected_metric}'
     ridge_fig = go.Figure(layout={'showlegend': False, 'title': title})
+    peaks = list()
     for i, (median, tech, xs, ys) in enumerate(ridge_data):
         min_x, max_x = min(xs), max(xs)
+        df = pd.DataFrame({'x': xs, 'y': ys})
+        df['_y'] = df['y'] + (len(ranking.items) - i) + 0.1
+        peak = df.loc[df['y'].idxmax()]
+        peaks.append((peak['x'], peak['_y']))
         ridge_fig.add_trace(go.Scatter(x=[min_x, max_x],
                                        y=np.full(2, len(ranking.items) - i),
                                        mode='lines', line_color='white'))
         std = np.std(ys)
         text = f'{tech.name}<br>Median: {median:.5f}<br>'
         text += f'Stdev: {std:.5f}'  # <br>CV: {std / np.mean(ys):.5f}'
-        ridge_fig.add_trace(go.Scatter(
-            x=xs, y=ys + (len(ranking.items) - i) + 0.1, fill='tonexty',
-            name=f'{tech.id}', hovertext=text))
+        ridge = df[df['y'] > 0.01 * peak['y']]
+        ridge_fig.add_trace(go.Scatter(x=ridge['x'], y=ridge['_y'],
+                                       fill='tonexty', name=f'{tech.id}',
+                                       hovertext=text))
+    peaks.reverse()
+    peak_df = pd.DataFrame(peaks, columns=['x', 'y'])
+    ridge_fig.add_trace(go.Scatter(x=peak_df['x'], y=peak_df['y'],
+                                   mode='lines'))
     ridge_fig.update_layout(height=h1)
     vals = [len(ridge_data) - i for i in range(len(ridge_data))]
     ids = [tech.id for _, tech, _, _ in ridge_data]
