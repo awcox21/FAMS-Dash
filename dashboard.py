@@ -102,14 +102,14 @@ def percentile_slider(id_):
 
 def polling_results():
     techs = [_.name for _ in technologies]
-    parplot_legend = list()
-    for category, color in zip(categories, colorscale):
-        parplot_legend.append(html.P([
-            category, ' : ',
-            html.Div(style={'height': '25px', 'width': '25px',
-                            'background-color': color[-1]})],
-            style={'font-size': font_size, 'display': 'flex',
-                   'align-items': 'center'}))
+    # parplot_legend = list()
+    # for category, color in zip(categories, colorscale):
+    #     parplot_legend.append(html.P([
+    #         category, ' : ',
+    #         html.Div(style={'height': '25px', 'width': '25px',
+    #                         'background-color': color[-1]})],
+    #         style={'font-size': font_size, 'display': 'flex',
+    #                'align-items': 'center'}))
     return [
         dbc.Row([
             dbc.Col([
@@ -153,8 +153,8 @@ def polling_results():
         dbc.Row([
             dbc.Col([
                 dcc.Graph(id='parallel-plot', figure=parallel_fig)
-            ], width=11),  # Parallel Plot
-            dbc.Col(parplot_legend, style={'margin': 'auto'}, width=1)
+            ], width=12),  # Parallel Plot
+            # dbc.Col(parplot_legend, style={'margin': 'auto'}, width=1)
         ])
     ]
 
@@ -646,14 +646,14 @@ def run_sim(_):
                     running = np.convolve(stds, np.ones(5), 'valid')
                     running /= 5
                     if running[-1] < 5e-3:
-                        message = f'std converged after {_ + 1}'
+                        # message = f'std converged after {_ + 1}'
                         break
                     elif abs(running[-1] - running[-2]) < 1e-6:
-                        message = f'diff converged after {_ + 1}'
+                        # message = f'diff converged after {_ + 1}'
                         break
-        else:
-            message = 'finished 10,000'
-        stds = [(i, j) for i, j in zip(nums, stds)]
+        # else:
+            # message = 'finished 10,000'
+        # stds = [(i, j) for i, j in zip(nums, stds)]
         freq /= nums[-1] + 1
         frequency = freq[0, :]
         df = pd.DataFrame({'name': [_.name for _ in technologies],
@@ -676,8 +676,8 @@ def run_sim(_):
                             color_continuous_scale='viridis',
                             labels={'x': 'Technologies', 'y': 'Ranking'})
         sim_fig.update_layout(font=dict(size=font_size))
-        sim_history = px.line(pd.DataFrame(stds, columns=('num', 'std')),
-                              x='num', y='std')
+        # sim_history = px.line(pd.DataFrame(stds, columns=('num', 'std')),
+        #                       x='num', y='std')
         return (df.to_dict('records'),
                 sim_fig,
                 # sim_history,
