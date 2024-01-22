@@ -545,18 +545,24 @@ def display_topsis(recent):
     Input('save-topsis', 'n_clicks'),
     Input('sim-data', 'data'),
     State('last-topsis', 'data'),
-    State('topsis-archive', 'data')
+    State('topsis-archive', 'data'),
+    [State(f'{_}-slider', 'value') for _ in metrics]
 )
-def save_topsis(_, from_sim, recent, archive):
+def save_topsis(_, from_sim, recent, archive, *args):
     changed = [p['prop_id'] for p in dash.callback_context.triggered][0]
     if 'save-topsis' in changed:
+        args = iter(args)
+        sliders = list()
+        for _ in metrics:
+            sliders.append(next(args))
+        weights = {metric: val for metric, val in zip(metrics, sliders)}
         if not recent:
             return archive
         if not archive:
-            archive = {'manual': [recent]}
+            archive = {'manual': [(weights, recent)]}
         else:
             if recent not in archive['manual']:
-                archive['manual'].append(recent)
+                archive['manual'].append((weights, recent))
         today = datetime.today().strftime('%Y-%m-%d')
         with open(f'{today} TOPSIS Results.json', 'w') as f:
             json.dump(archive, f)
